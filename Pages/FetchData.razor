@@ -1,0 +1,56 @@
+﻿@page "/inkass"
+
+@using PetrolInfo.Data
+@inject InfoService inkassService
+
+<h1 class="text-light">Непроінкасовані термінали станом на @DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")</h1>
+
+
+@if (rows == null)
+{
+    <div class="lds-ripple"><div></div><div></div></div>
+
+}
+else
+{
+    @if (rows.Count != 0)
+    {
+        <div style="display:table">
+            <table class="table border border-light" style="display:inline-block">
+            <thead class="text-light text-uppercase">
+                <tr>
+                    <th>Номер ТО</th>
+                    <th>Назва</th>
+                    <th>Адреса</th>
+                    <th>Остання успішна інкасація</th>
+                </tr>
+            </thead>
+            <tbody class="text-light">
+                @foreach (var row in rows)
+                {
+                    <tr>
+                        <td>@row.Nomer</td>
+                        <td>@row.Nazvanie</td>
+                        <td>@row.Adres</td>
+                        <td>@row.Date.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    }
+    else 
+    {
+        <h2>Не може бути! ВСІ ПРОІНКАСУВАЛИСЬ!</h2>
+    }
+}
+
+@code {
+    private List<OneRow> rows;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(1);
+        rows = await inkassService.GetInkassInfoAsync();
+    }
+}

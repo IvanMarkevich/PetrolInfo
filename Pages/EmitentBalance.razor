@@ -1,0 +1,65 @@
+﻿@page "/emitentinfo"
+
+@using PetrolInfo.Data
+@inject InfoService EmitentService
+
+<h1 class="text-light">Баланси емітентів станом на @DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")</h1>
+
+@if (rows == null)
+{
+    <div class="lds-ripple"><div></div><div></div></div>
+
+}
+else
+{
+    @if (rows.Count != 0)
+    {
+        <div style="display:table">
+        <table class="table border border-light" style="display:inline-block">
+            <thead class="text-light text-uppercase">
+                <tr>
+                    <th>Номер емітента</th>
+                    <th>Баланс</th>
+                    
+                </tr>
+            </thead>
+            <tbody class="text-light">
+                @foreach (var row in rows)
+                {
+                    @if (row.Balance < 1000)
+                    {
+                        <tr style="color:coral">
+                            <td>@row.EmitentNumber</td>
+                            <td align ="right">@row.Balance.ToString("#,0.00")</td>
+
+                        </tr>
+                    }
+                    else
+                    {
+                        <tr>
+                            <td>@row.EmitentNumber</td>
+                            <td align="right">@row.Balance.ToString("#,0.00")</td>
+
+                        </tr>
+                    }
+                    
+                }
+            </tbody>
+        </table>
+        </div>
+    }
+    else
+    {
+        <h2>Не може бути!</h2>
+    }
+}
+
+@code {
+    private List<EmitentInfo> rows;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(1);
+        rows = await EmitentService.GetEmitentInfoAsync();
+    }
+}

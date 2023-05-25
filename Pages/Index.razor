@@ -1,0 +1,665 @@
+﻿@page "/cardinfo"
+
+@using PetrolInfo.Data
+@inject InfoService infoService
+
+<style>
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+</style>
+
+<div class="input-group mb-3 text-light" style="width:250px">
+    <input type="number" class="form-control" title="Введіть номер карти" aria-describedby="basic-addon2" @bind-value="@placeholder" @bind-value:event="oninput" @onfocus="ClearInput" @onkeypress="KeyPress">
+    <div class="input-group-append">
+        <button class="btn btn-outline-secondary" type="button" @onclick="ShowInfoAsync" style="border-color:lightgray color:darkgrey">Показати</button>
+    </div>
+</div>
+
+@if (info != null)
+{
+    <div class="text-light card bg-transparent border border-light rounded" style="display:table">
+        <div class="card-body">
+
+            @if (info.Filial == "")
+            {
+                <p style="color:coral"><span class="oi oi-warning" aria-hidden="true"></span> Невідома карта</p>
+                <br />
+                <p>
+                    <label for="date">Обслуговування, починаючи з: </label>
+                    <input type="text" id="date" name="date" title="ДД.ММ.ГГГГ" @bind-value="@TextDate" @bind-value:event="oninput" @onkeypress="DateChange" />
+                    <button type="button" class="btn btn-outline-light" @onclick="ShowTranzAsync">
+                        @if (TranzRequested == false)
+                        {<span class="oi oi-chevron-bottom" aria-hidden="true">  Показати</span>}
+                        else
+                        { <span class="oi oi-chevron-top" aria-hidden="true">  Сховати</span>}
+                    </button>
+                </p>
+                @if (TranzRequested == true)
+                {
+                    @if (tranzs == null)
+                    {
+                        <p></p>
+                        <div class="lds-ripple"><div></div><div></div></div>
+
+                    }
+                    else
+                    {
+                        @if (tranzs.Count > 0)
+                        {
+                            <table class="table border border-light">
+
+                                <thead class="text-light text-uppercase">
+                                    <tr>
+                                        <th>Дата обслуговування</th>
+                                        <th>Дата запису</th>
+                                        <th>Послуга</th>
+                                        <th>Кількість</th>
+                                        <th>Точка обслуговування</th>
+                                        <th>Операція</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-light">
+                                    @foreach (var record in tranzs)
+                                    {
+                                        @if (record.TypeOfServ == "Поверн.")
+                                        {
+                                            <tr style="color:coral">
+                                                <td>@record.DateOf.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.DateIn.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Amount.ToString("0.00")</td>
+                                                <td>@record.PosEmitent/@record.TONum @record.TOName @record.TOAddres</td>
+                                                <td>@record.TypeOfServ</td>
+
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td>@record.DateOf.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.DateIn.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Amount.ToString("0.00")</td>
+                                                <td>@record.PosEmitent/@record.TONum @record.TOName @record.TOAddres</td>
+                                                <td>@record.TypeOfServ</td>
+
+                                            </tr>
+                                        }
+
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p></p>
+                            <p style="color:coral"><span class="oi oi-warning" aria-hidden="true"></span> Обслуговування не знайдені</p>
+                        }
+
+
+
+
+                    }
+                }
+            }
+            else
+            {
+                <p>Філія: @info.Filial</p>
+                <p>Клієнт: @info.Client</p>
+                @if (info.Owner != " " & info.Owner != "")
+                {
+                    <p>Тримач: @info.Owner</p>
+                }
+
+                <p style="color:@color_state">
+                    Стан: @info.State с @info.DateState.ToString("dd.MM.yyyy")
+                    @if (info.Reason != " " && info.State != "в роботі")
+                    {
+                        <span> (@info.Reason)</span>
+                    }
+                </p>
+
+                @if (info.DateStop > DateTime.Now)
+                {
+                    <p>Термін дії картки закінчується: @info.DateStop.ToString("dd.MM.yyyy")</p>
+                }
+                else
+                {
+                    <p style="color:coral">Термін дії картки закінчився: @info.DateStop.ToString("dd.MM.yyyy")</p>
+                }
+
+                @if (info.OfflineCells.Count != 0)
+                {
+                    <span>Офлайн гаманці:</span>
+                    <table class="table border border-light">
+
+                        <thead class="text-light text-uppercase">
+                            <tr>
+                                <th>Послуга</th>
+                                <th>Схема</th>
+                                <th>Залишок</th>
+                                <th>Ліміт</th>
+                                <th>Тип ліміта</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-light">
+                            @foreach (var service in info.OfflineCells)
+                            {
+                                <tr>
+                                    <td>@service.Service</td>
+                                    <td>@service.Sheme</td>
+                                    <td>@service.Balance</td>
+                                    <td>@service.Limit</td>
+                                    <td>@service.TermOfLimit @service.TypeOfLimit</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+
+
+                @if (info.Type != "A")
+                {
+                    <div class="card bg-transparent border border-light rounded" style="display:table">
+                        <div class="card-body">
+                            <p>Онлайн карта. Тип: @info.Type</p>
+                            @if (info.OnlineBalance == -1234567890)
+                            {
+                                <p style="color:@color_balance"><span class="oi oi-warning" aria-hidden="true"></span> ОНЛАЙН КАРТА ВИДАНА ОФЛАЙН КЛІЄНТУ!!!</p>
+                            }
+                            else
+                            {
+                                <p style="color:@color_balance">Поточний баланс клієнта: @info.OnlineBalance грн.</p>
+                            }
+                            
+                            @if (info.OnlineCells.Count != 0)
+                            {
+                                <span>Онлайн ліміти:</span>
+                                <table class="table border border-light">
+
+                                    <thead class="text-light text-uppercase">
+                                        <tr>
+                                            <th>Послуга</th>
+                                            <th>Добовий (Макс./Поточ.)</th>
+                                            <th>Тижневий (Макс./Поточ.)</th>
+                                            <th>Місячний (Макс./Поточ.)</th>
+
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-light">
+                                        @foreach (var service in info.OnlineCells)
+                                        {
+                                            <tr>
+                                                <td>@service.Service</td>
+                                                <td>@service.DLimit</td>
+                                                <td>@service.WLimit</td>
+                                                <td>@service.MLimit</td>
+
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    </div>
+
+
+                }
+
+                <button type="button" class="btn btn-outline-light" @onclick="ShowHistoryAsync">
+                    @if (HistoryRequested == false)
+                    {<span class="oi oi-chevron-bottom" aria-hidden="true">  Останні 10 записів історії карти</span>}
+                    else
+                    { <span class="oi oi-chevron-top" aria-hidden="true">  Сховати</span>}
+                </button>
+                @if (HistoryRequested == true)
+                {
+                    @if (history == null)
+                    {
+                        <p></p>
+                        <div class="lds-ripple"><div></div><div></div></div>
+                    }
+                    else
+                    {
+                        @if (history.Count > 0)
+                        {
+                            <table class="table border border-light">
+
+                                <thead class="text-light text-uppercase">
+                                    <tr>
+                                        <th>Коли</th>
+                                        <th>Власник</th>
+                                        <th>Стан</th>
+                                        <th>Хто обслужив</th>
+                                        <th>Коментар</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-light">
+                                    @foreach (var record in history)
+                                    {
+                                        @if (record.State != "В роботі")
+                                        {
+                                            <tr style="color:coral">
+                                                <td>@record.When.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.Owner</td>
+                                                <td>@record.State</td>
+                                                <td>@record.WhoServ</td>
+                                                <td>@record.Comment</td>
+
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td>@record.When.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.Owner</td>
+                                                <td>@record.State</td>
+                                                <td>@record.WhoServ</td>
+                                                <td>@record.Comment</td>
+
+                                            </tr>
+                                        }
+
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p></p>
+                            <p style="color:coral"><span class="oi oi-warning" aria-hidden="true"></span> Немає даних</p>
+                        }
+
+                    }
+                }
+
+                <br />
+                <button type="button" class="btn btn-outline-light" @onclick="ShowOP">
+                    @if (OPRequested == false)
+                    {<span class="oi oi-chevron-bottom" aria-hidden="true">  Останні 10 ВП</span>}
+                    else
+                    { <span class="oi oi-chevron-top" aria-hidden="true">  Сховати</span>}
+                </button>
+                @if (OPRequested == true)
+                {
+                    @if (oplist == null)
+                    {
+                        <p></p>
+                        <div class="lds-ripple"><div></div><div></div></div>
+                    }
+                    else
+                    {
+                        @if (oplist.Count > 0)
+                        {
+                            <table class="table border border-light">
+
+                                <thead class="text-light text-uppercase">
+                                    <tr>
+                                        <th>Дата та час створення</th>
+                                        <th>Дата початку</th>
+                                        <th>Дата закінчення</th>
+                                        <th>Послуга</th>
+                                        <th>Сума ВП</th>
+                                        <th>Стан</th>
+                                        <th>Дата та час реалізації</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-light">
+                                    @foreach (var record in oplist)
+                                    {
+                                        @if (record.State == "Протерміновано" || record.State == "Повернено")
+                                        {
+                                            <tr style="color:coral">
+                                                <td>@record.CreateDate.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.StartDate.ToShortDateString()</td>
+                                                <td>@record.EndDate.ToShortDateString()</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Summa</td>
+                                                <td>@record.State</td>
+                                                @if (@record.RcvDate.HasValue)
+                                                {
+                                                    <td>@record.RcvDate.Value.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                }
+                                                else
+                                                {
+                                                    <td>@record.RcvDate</td>
+                                                }
+
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td>@record.CreateDate.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.StartDate.ToShortDateString()</td>
+                                                <td>@record.EndDate.ToShortDateString()</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Summa</td>
+                                                <td>@record.State</td>
+                                                @if (@record.RcvDate.HasValue)
+                                                {
+                                                    <td>@record.RcvDate.Value.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                }
+                                                else
+                                                {
+                                                    <td>@record.RcvDate</td>
+                                                }
+
+
+                                            </tr>
+                                        }
+
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p></p>
+                            <p style="color:coral"><span class="oi oi-warning" aria-hidden="true"></span> ВП не знайдені</p>
+                        }
+                    }
+                }
+                <br />
+                <button type="button" class="btn btn-outline-light" @onclick="ShowOIL">
+                    @if (OILRequested == false)
+                    {<span class="oi oi-chevron-bottom" aria-hidden="true">  Останні 10 ВЗЛ</span>}
+                    else
+                    { <span class="oi oi-chevron-top" aria-hidden="true">  Сховати</span>}
+                </button>
+                @if (OILRequested == true)
+                {
+                    @if (oillist == null)
+                    {
+                        <p></p>
+                        <div class="lds-ripple"><div></div><div></div></div>
+                    }
+                    else
+                    {
+                        @if (oillist.Count > 0)
+                        {
+                            <table class="table border border-light">
+
+                                <thead class="text-light text-uppercase">
+                                    <tr>
+                                        <th>Дата та час створення</th>
+                                        <th>Дата початку</th>
+                                        <th>Дата закінчення</th>
+                                        <th>Послуга</th>
+                                        <th>Сума ВЗЛ</th>
+                                        <th>Стан</th>
+                                        <th>Дата та час реалізації</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-light">
+                                    @foreach (var record in oillist)
+                                    {
+                                        @if (record.State == "Протерміновано" || record.State == "Видалено")
+                                        {
+                                            <tr style="color:coral">
+                                                <td>@record.CreateDate.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.StartDate.ToShortDateString()</td>
+                                                <td>@record.EndDate.ToShortDateString()</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Summa</td>
+                                                <td>@record.State</td>
+                                                @if (@record.RcvDate.HasValue)
+                                                {
+                                                    <td>@record.RcvDate.Value.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                }
+                                                else
+                                                {
+                                                    <td>@record.RcvDate</td>
+                                                }
+
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td>@record.CreateDate.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.StartDate.ToShortDateString()</td>
+                                                <td>@record.EndDate.ToShortDateString()</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Summa</td>
+                                                <td>@record.State</td>
+                                                @if (@record.RcvDate.HasValue)
+                                                {
+                                                    <td>@record.RcvDate.Value.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                }
+                                                else
+                                                {
+                                                    <td>@record.RcvDate</td>
+                                                }
+
+                                            </tr>
+                                        }
+
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p></p>
+                            <p style="color:coral"><span class="oi oi-warning" aria-hidden="true"></span> ВЗЛ не знайдені</p>
+                        }
+                    }
+                }
+                <br />
+                <p>
+                    <label for="date">Обслуговування, починаючи з: </label>
+                    <input type="text" id="date" name="date" title="ДД.ММ.ГГГГ" @bind-value="@TextDate" @bind-value:event="oninput" @onkeypress="DateChange" />
+                    <button type="button" class="btn btn-outline-light" @onclick="ShowTranzAsync">
+                        @if (TranzRequested == false)
+                        {<span class="oi oi-chevron-bottom" aria-hidden="true">  Показати</span>}
+                        else
+                        { <span class="oi oi-chevron-top" aria-hidden="true">  Сховати</span>}
+                    </button>
+                </p>
+                @if (TranzRequested == true)
+                {
+                    @if (tranzs == null)
+                    {
+                        <p></p>
+                        <div class="lds-ripple"><div></div><div></div></div>
+
+                    }
+                    else
+                    {
+                        @if (tranzs.Count > 0)
+                        {
+                            <table class="table border border-light">
+
+                                <thead class="text-light text-uppercase">
+                                    <tr>
+                                        <th>Дата обслуговування</th>
+                                        <th>Дата запису</th>
+                                        <th>Послуга</th>
+                                        <th>Кількість</th>
+                                        <th>Точка обслуговування</th>
+                                        <th>Операція</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-light">
+                                    @foreach (var record in tranzs)
+                                    {
+                                        @if (record.TypeOfServ == "Поверн.")
+                                        {
+                                            <tr style="color:coral">
+                                                <td>@record.DateOf.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.DateIn.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Amount.ToString("0.00")</td>
+                                                <td>@record.PosEmitent/@record.TONum @record.TOName @record.TOAddres</td>
+                                                <td>@record.TypeOfServ</td>
+
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td>@record.DateOf.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.DateIn.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                                <td>@record.Service</td>
+                                                <td align="right">@record.Amount.ToString("0.00")</td>
+                                                <td>@record.PosEmitent/@record.TONum @record.TOName @record.TOAddres</td>
+                                                <td>@record.TypeOfServ</td>
+
+                                            </tr>
+                                        }
+
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p></p>
+                            <p style="color:coral"><span class="oi oi-warning" aria-hidden="true"></span> Обслуговування не знайдені</p>
+                        }
+
+
+
+
+                    }
+                }
+
+
+            }
+
+
+
+        </div>
+    </div>
+}
+else
+{
+    if (cardnumber != 0)
+    {
+        <div class="lds-ripple"><div></div><div></div></div>
+    }
+}
+
+
+@code
+{
+    private int cardnumber;
+    private string placeholder = "Введіть номер карти";
+    private CardInfo info;
+    private string color_state = "";
+    private string color_balance = "";
+    private List<CardHistoryEntry> history;
+    bool HistoryRequested = false;
+    private List<OPEntry> oplist;
+    bool OPRequested = false;
+    private List<OILEntry> oillist;
+    bool OILRequested = false;
+    bool TranzRequested = false;
+    private DateTime StartDateTranz = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+    private string TextDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).ToString("dd.MM.yyyy");
+    private List<Tranz> tranzs;
+
+    private async Task ShowInfoAsync()
+    {
+        info = null;
+        HistoryRequested = false;
+        OPRequested = false;
+        OILRequested = false;
+        TranzRequested = false;
+
+        cardnumber = Int32.Parse(placeholder);
+
+
+        await Task.Delay(1);
+        info = await infoService.GetCardInfoAsync(cardnumber);
+        if (info.State != "в роботі")
+            color_state = "coral";
+        else
+            color_state = "";
+        if (info.OnlineBalance < 0)
+            color_balance = "coral";
+        else
+            color_balance = "";
+    }
+    private void ClearInput()
+    {
+        if (placeholder == "Введіть номер карти")
+            placeholder = "";
+    }
+
+
+
+    private async Task KeyPress(KeyboardEventArgs e)
+    {
+
+        if (e.Key == "Enter")
+            await ShowInfoAsync();
+    }
+
+    private async Task DateChange(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+
+            await ShowTranzAsync();
+        }
+        else
+        {
+            TranzRequested = false;
+        }
+
+
+
+    }
+
+    private async Task ShowHistoryAsync()
+    {
+        history = null;
+        HistoryRequested = !HistoryRequested;
+        await Task.Delay(1);
+        history = await infoService.GetCardHistoryAsync(cardnumber);
+    }
+
+    private async Task ShowOP()
+    {
+        oplist = null;
+        OPRequested = !OPRequested;
+        await Task.Delay(1);
+        oplist = await infoService.GetOPAsync(cardnumber);
+    }
+
+    private async Task ShowOIL()
+    {
+        oillist = null;
+        OILRequested = !OILRequested;
+        await Task.Delay(1);
+        oillist = await infoService.GetOILsAsync(cardnumber);
+    }
+
+    private async Task ShowTranzAsync()
+    {
+        tranzs = null;
+        TranzRequested = !TranzRequested;
+        try
+        {
+            StartDateTranz = DateTime.ParseExact(TextDate, "dd.MM.yyyy", null);
+        }
+        catch
+        {
+            TextDate = StartDateTranz.ToString("dd.MM.yyyy");
+        }
+
+        await Task.Delay(1);
+        tranzs = await infoService.GetTranzsAsync(cardnumber, StartDateTranz);
+    }
+}
+
+
